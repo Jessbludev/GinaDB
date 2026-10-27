@@ -1,0 +1,16 @@
+{
+  "name": "ginadb-client",
+  "version": "0.6.0",
+  "description": "Cliente TypeScript para GinaDB-Lite 0.6 (Bun vía bun:ffi, Node vía koffi)",
+  "private": true,
+  "type": "module",
+  "main": "src/client.ts",
+  "scripts": {
+    "test": "bun test",
+    "workload": "bun src/workload.ts",
+    "workload:node": "node src/workload.ts"
+  },
+  "dependencies": {
+    "koffi": "^3.3.2"
+  }
+}
