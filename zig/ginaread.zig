@@ -52,6 +52,21 @@ pub const Kind = enum(u8) {
     _,
 };
 
+/// P8: unknown kinds are data, not UB. @tagName is illegal behavior for
+/// unnamed values of a non-exhaustive enum, so callers must use this.
+pub fn kindName(k: Kind) []const u8 {
+    return switch (k) {
+        .put => "put",
+        .del => "del",
+        .commit => "commit",
+        .schema => "schema",
+        .drop => "drop",
+        .base => "base",
+        .resch => "resch",
+        _ => "unknown",
+    };
+}
+
 pub const Value = union(enum) {
     null,
     boolean: bool,
@@ -303,7 +318,7 @@ pub const WalResult = struct {
             }
             frames.append(alloc, .{
                 .version = version,
-                .kind = @enumFromInt(body[1]),
+                .kind = @fromBackingInt(@intCast(body[1])),
                 .lsn = std.mem.readInt(u64, body[2..][0..8], .little),
                 .tx = std.mem.readInt(u64, body[10..][0..8], .little),
                 .payload = body[18..],
@@ -544,9 +559,7 @@ fn parseDelta(db: *Db, data: []const u8) Error!DeltaInfo {
         if (std.mem.readInt(u32, p[0..4], .little) == PAGE_MAGIC_OVF) {
             const chunk = std.mem.readInt(u32, p[8..12], .little);
             if (24 + chunk > PAGE_SIZE) return Error.Corruption;
-            ovf.put(a, pid, .{ .chunk = chunk,
-                .next = std.mem.readInt(u64, p[16..24], .little),
-                .data = p[24..] }) catch return Error.Io;
+            ovf.put(a, pid, .{ .chunk = chunk, .next = std.mem.readInt(u64, p[16..24], .little), .data = p[24..] }) catch return Error.Io;
             continue;
         }
         const hd = parseDataHeader(p);
@@ -575,9 +588,7 @@ fn parseDelta(db: *Db, data: []const u8) Error!DeltaInfo {
             const tid = std.mem.readInt(u32, rec[0..4], .little);
             const layout = rec[4];
             const body = rec[5..];
-            var d = DeltaRec{ .lsn = hd.page_lsn, .page = pid, .tid = tid,
-                .layout = layout, .key = "", .name = "", .row = .empty,
-                .def = null, .ovf_first = 0, .ovf_total = 0 };
+            var d = DeltaRec{ .lsn = hd.page_lsn, .page = pid, .tid = tid, .layout = layout, .key = "", .name = "", .row = .empty, .def = null, .ovf_first = 0, .ovf_total = 0 };
             switch (layout) {
                 L_ROW => {
                     var pos: usize = 0;
@@ -785,7 +796,7 @@ pub const Db = struct {
         const a = db.arena.allocator();
 
         // 1. snapshot
-        const data_path = std.fmt.allocPrint(a, "{s}/data.pages", .{dir}) catch return Error.Io;
+        const data_path = a.print("{s}/data.pages", .{dir}) catch return Error.Io;
         if (readFileAlloc(a, data_path)) |snap| {
             const info = try parseSnapshot(&db, snap);
             db.checkpoint_lsn = info.checkpoint_lsn;
@@ -799,7 +810,7 @@ pub const Db = struct {
 
         // 2. delta incremental (0.6): versiones desde el último checkpoint
         //    completo; el watermark sustituye al del base si es más nuevo.
-        const delta_path = std.fmt.allocPrint(a, "{s}/delta.pages", .{dir}) catch return Error.Io;
+        const delta_path = a.print("{s}/delta.pages", .{dir}) catch return Error.Io;
         if (readFileAlloc(a, delta_path)) |ddata| {
             if (ddata.len >= 2 * PAGE_SIZE) {
                 if (parseDelta(&db, ddata)) |dinfo| {
@@ -814,7 +825,7 @@ pub const Db = struct {
         }
 
         // 3. WAL replay
-        const wal_path = std.fmt.allocPrint(a, "{s}/wal.log", .{dir}) catch return Error.Io;
+        const wal_path = a.print("{s}/wal.log", .{dir}) catch return Error.Io;
         if (readFileAlloc(a, wal_path)) |wal| {
             const res = try WalResult.parse(a, wal);
             db.wal_bad_tail = res.bad_tail_bytes;
@@ -1053,7 +1064,7 @@ export fn gina_read_get(db: ?*anyopaque, table: [*:0]const u8, key: [*:0]const u
     const d: *Db = @ptrCast(@alignCast(db orelse return null));
     const row = d.get(std.mem.span(table), std.mem.span(key)) orelse return null;
     const json = rowToJson(std.heap.page_allocator, row) catch return null;
-    const z = std.heap.page_allocator.dupeZ(u8, json) catch {
+    const z = std.heap.page_allocator.dupeSentinel(u8, json, 0) catch {
         std.heap.page_allocator.free(json);
         return null;
     };
@@ -1077,7 +1088,7 @@ export fn gina_read_close(db: ?*anyopaque) callconv(.c) void {
 }
 
 export fn gina_read_version() callconv(.c) [*:0]const u8 {
-    return "ginaread 0.5 (zig 0.16)";
+    return "ginaread 0.7 (zig 0.17)";
 }
 
 // ---------------------------------------------------------------------------
@@ -1132,6 +1143,43 @@ test "wal torn tail is reported, not thrown" {
     const res = try WalResult.parse(alloc, &data);
     try testing.expectEqual(@as(usize, 0), res.frames.len);
     try testing.expect(res.bad_tail_bytes > 0);
+}
+
+test "wal unknown kind is data, not UB (P8)" {
+    // A future writer may emit a kind this reader does not know. With a
+    // valid CRC the frame must parse (non-exhaustive enum), be named
+    // safely (no @tagName on unnamed values) and be skipped by replay.
+    const alloc = testing.allocator;
+    var body: std.ArrayListUnmanaged(u8) = .empty;
+    defer body.deinit(alloc);
+    try body.append(alloc, FORMAT_VERSION);
+    try body.append(alloc, 99); // unknown kind
+    const lsn: u64 = 1;
+    var i: usize = 0;
+    while (i < 8) : (i += 1) try body.append(alloc, @truncate(lsn >> @intCast(i * 8)));
+    const tx: u64 = 9;
+    i = 0;
+    while (i < 8) : (i += 1) try body.append(alloc, @truncate(tx >> @intCast(i * 8)));
+    try body.appendSlice(alloc, "future");
+
+    var frame: std.ArrayListUnmanaged(u8) = .empty;
+    defer frame.deinit(alloc);
+    var w: u32 = WAL_MAGIC;
+    i = 0;
+    while (i < 4) : (i += 1) try frame.append(alloc, @truncate(w >> @intCast(i * 8)));
+    w = @intCast(body.items.len);
+    i = 0;
+    while (i < 4) : (i += 1) try frame.append(alloc, @truncate(w >> @intCast(i * 8)));
+    w = crc32(body.items);
+    i = 0;
+    while (i < 4) : (i += 1) try frame.append(alloc, @truncate(w >> @intCast(i * 8)));
+    try frame.appendSlice(alloc, body.items);
+
+    var res = try WalResult.parse(alloc, frame.items);
+    defer res.deinit(alloc);
+    try testing.expectEqual(@as(usize, 1), res.frames.len);
+    try testing.expectEqual(@as(u64, 1), res.frames[0].lsn);
+    try testing.expectEqualStrings("unknown", kindName(res.frames[0].kind));
 }
 
 test "value decode: vector + text" {

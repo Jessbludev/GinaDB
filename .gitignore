@@ -1,0 +1,42 @@
+# C++ build artifacts (Makefile)
+*.o
+*.a
+*.so
+/gina
+/demo
+/ginadump
+/tests/unit_test
+/tests/btree_test
+/tests/crash_test
+/benchmark/bench
+/benchmark/reopen_bench
+/benchmark/crc_check
+/benchmark/zig_xval
+
+# Zig build artifacts
+zig/.zig-cache/
+zig/zig-out/
+
+# runtime/test database directories
+/demo-data/
+/bench-reopen-data/
+/bench-xval-data/
+/bench-data/
+/bench-knn/
+/zig-ffi-demo-data/
+/smoke-data/
+/reopen-data/
+/py-demo-data/
+/ffi-demo-data/
+/ts-data/
+/cli-data/
+/gina-data/
+/open/
+/--help/
+/t-*/
+/c-*/
+
+# packaging / deps
+*.tar.gz
+node_modules/
+__pycache__/

@@ -7,7 +7,9 @@ const std = @import("std");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
-    const optimize = b.standardOptimizeOption(.{ .preferred_optimize_mode = .ReleaseSafe });
+    // 0.17: std.lang.Optimize tags are .debug/.safe/.fast/.small
+    // (old .ReleaseSafe alias is deprecated, removed after 0.18).
+    const optimize = b.standardOptimizeOption(.{ .preferred_optimize_mode = .safe });
 
     // ---- pure-Zig reader module ------------------------------------------
     const reader_mod = b.createModule(.{

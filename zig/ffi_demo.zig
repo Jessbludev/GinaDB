@@ -66,17 +66,14 @@ pub fn main(init: std.process.Init.Minimal) !void {
         "{\"op\":\"put\",\"table\":\"users\",\"row\":{\"id\":\"u2\",\"email\":\"ada@db.io\",\"age\":36}}," ++
         "{\"op\":\"put\",\"table\":\"users\",\"row\":{\"id\":\"u3\",\"email\":\"lin@db.io\",\"age\":21}}]");
 
-    const eq = try db.select("users",
-        "{\"where\":{\"op\":\"eq\",\"col\":\"email\",\"val\":\"ada@db.io\"}}");
+    const eq = try db.select("users", "{\"where\":{\"op\":\"eq\",\"col\":\"email\",\"val\":\"ada@db.io\"}}");
     try out.interface.print("select eq email (índice) = {s}\n", .{eq.span()});
     eq.free();
 
-    const rng = try db.select("users",
-        "{\"where\":{\"op\":\"between\",\"col\":\"age\",\"lo\":30,\"hi\":40}," ++
+    const rng = try db.select("users", "{\"where\":{\"op\":\"between\",\"col\":\"age\",\"lo\":30,\"hi\":40}," ++
         "\"\":[],\"fields\":[\"id\",\"age\"]}");
     _ = rng;
-    const rng2 = try db.select("users",
-        "{\"where\":{\"op\":\"between\",\"col\":\"age\",\"lo\":30,\"hi\":40},\"fields\":[\"id\",\"age\"]}");
+    const rng2 = try db.select("users", "{\"where\":{\"op\":\"between\",\"col\":\"age\",\"lo\":30,\"hi\":40},\"fields\":[\"id\",\"age\"]}");
     try out.interface.print("select rango age (índice) = {s}\n", .{rng2.span()});
     rng2.free();
 

@@ -82,16 +82,15 @@ pub fn main(init: std.process.Init.Minimal) !void {
     try out.interface.print("  last_lsn: {d}  checkpoint_lsn: {d}\n", .{ db.last_lsn, db.checkpoint_lsn });
     try out.interface.print("  snapshot: {d} pages (+{d} overflow)\n", .{ db.snapshot_pages, db.snapshot_overflow });
     try out.interface.print("  delta: seq={d} watermark={d} pages={d} live={d} free={d} suspect={d} corrupt={d} broken_ovf={d} records={d}\n", .{
-        db.delta.seq, db.delta.watermark, db.delta.page_count,
-        db.delta.live_pages, db.delta.free_pages,
-        db.delta.suspect_pages, db.delta.corrupt_pages,
-        db.delta.broken_ovf_records, db.delta.records,
+        db.delta.seq,           db.delta.watermark,          db.delta.page_count,
+        db.delta.live_pages,    db.delta.free_pages,         db.delta.suspect_pages,
+        db.delta.corrupt_pages, db.delta.broken_ovf_records, db.delta.records,
     });
     try out.interface.print("  wal: {d} frames, bad tail: {d} bytes\n", .{ db.wal_frames, db.wal_bad_tail });
 }
 
 fn walDump(a: std.mem.Allocator, dir: []const u8, out: anytype) !void {
-    const path = try std.fmt.allocPrint(a, "{s}/wal.log", .{dir});
+    const path = try a.print("{s}/wal.log", .{dir});
     var threaded = std.Io.Threaded.init(a, .{});
     defer threaded.deinit();
     const io = threaded.io();
@@ -105,7 +104,7 @@ fn walDump(a: std.mem.Allocator, dir: []const u8, out: anytype) !void {
     });
     for (res.frames) |fr| {
         try out.interface.print("  lsn={d:>6} tx={d:>4} kind={s:>7} v{d} payload={d}B\n", .{
-            fr.lsn, fr.tx, @tagName(fr.kind), fr.version, fr.payload.len,
+            fr.lsn, fr.tx, ginaread.kindName(fr.kind), fr.version, fr.payload.len,
         });
     }
     if (res.bad_tail_bytes > 0)

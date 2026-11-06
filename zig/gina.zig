@@ -28,40 +28,26 @@ const c = struct {
         pub const EARG: i32 = 9;
         pub const ERROR: i32 = -1;
     };
-    extern fn gina_open(dir: [*:0]const u8, durable: i32, checkpoint_every: u32,
-        changelog_capacity: u64, max_blob_size: u64) callconv(.c) ?*anyopaque;
+    extern fn gina_open(dir: [*:0]const u8, durable: i32, checkpoint_every: u32, changelog_capacity: u64, max_blob_size: u64) callconv(.c) ?*anyopaque;
     extern fn gina_close(db: ?*anyopaque) callconv(.c) void;
-    extern fn gina_create_table(db: ?*anyopaque, name: [*:0]const u8,
-        json_schema: [*:0]const u8) callconv(.c) i32;
+    extern fn gina_create_table(db: ?*anyopaque, name: [*:0]const u8, json_schema: [*:0]const u8) callconv(.c) i32;
     extern fn gina_drop_table(db: ?*anyopaque, name: [*:0]const u8) callconv(.c) i32;
-    extern fn gina_insert(db: ?*anyopaque, table: [*:0]const u8,
-        json_row: [*:0]const u8) callconv(.c) i32;
-    extern fn gina_update(db: ?*anyopaque, table: [*:0]const u8, key: [*:0]const u8,
-        json_patch: [*:0]const u8) callconv(.c) i32;
-    extern fn gina_erase(db: ?*anyopaque, table: [*:0]const u8,
-        key: [*:0]const u8) callconv(.c) i32;
-    extern fn gina_get(db: ?*anyopaque, table: [*:0]const u8,
-        key: [*:0]const u8) callconv(.c) ?[*:0]u8;
+    extern fn gina_insert(db: ?*anyopaque, table: [*:0]const u8, json_row: [*:0]const u8) callconv(.c) i32;
+    extern fn gina_update(db: ?*anyopaque, table: [*:0]const u8, key: [*:0]const u8, json_patch: [*:0]const u8) callconv(.c) i32;
+    extern fn gina_erase(db: ?*anyopaque, table: [*:0]const u8, key: [*:0]const u8) callconv(.c) i32;
+    extern fn gina_get(db: ?*anyopaque, table: [*:0]const u8, key: [*:0]const u8) callconv(.c) ?[*:0]u8;
     extern fn gina_all(db: ?*anyopaque, table: [*:0]const u8) callconv(.c) ?[*:0]u8;
     extern fn gina_count(db: ?*anyopaque, table: [*:0]const u8) callconv(.c) i64;
-    extern fn gina_knn(db: ?*anyopaque, table: [*:0]const u8, column: [*:0]const u8,
-        query: [*]const f32, dims: u32, k: u32, metric: i32) callconv(.c) ?[*:0]u8;
-    extern fn gina_search(db: ?*anyopaque, table: [*:0]const u8, column: [*:0]const u8,
-        query: [*:0]const u8, limit: u32) callconv(.c) ?[*:0]u8;
-    extern fn gina_changes(db: ?*anyopaque, table: [*:0]const u8,
-        since: u64) callconv(.c) ?[*:0]u8;
-    extern fn gina_watch(db: ?*anyopaque, table: [*:0]const u8,
-        cb: *const fn ([*:0]const u8, ?*anyopaque) callconv(.c) void,
-        userdata: ?*anyopaque) callconv(.c) i64;
+    extern fn gina_knn(db: ?*anyopaque, table: [*:0]const u8, column: [*:0]const u8, query: [*]const f32, dims: u32, k: u32, metric: i32) callconv(.c) ?[*:0]u8;
+    extern fn gina_search(db: ?*anyopaque, table: [*:0]const u8, column: [*:0]const u8, query: [*:0]const u8, limit: u32) callconv(.c) ?[*:0]u8;
+    extern fn gina_changes(db: ?*anyopaque, table: [*:0]const u8, since: u64) callconv(.c) ?[*:0]u8;
+    extern fn gina_watch(db: ?*anyopaque, table: [*:0]const u8, cb: *const fn ([*:0]const u8, ?*anyopaque) callconv(.c) void, userdata: ?*anyopaque) callconv(.c) i64;
     extern fn gina_unwatch(db: ?*anyopaque, watch_id: i64) callconv(.c) i32;
     extern fn gina_checkpoint(db: ?*anyopaque) callconv(.c) i32;
     extern fn gina_compact(db: ?*anyopaque) callconv(.c) i32;
-    extern fn gina_select(db: ?*anyopaque, table: [*:0]const u8,
-        json_query: [*:0]const u8) callconv(.c) ?[*:0]u8;
-    extern fn gina_create_index(db: ?*anyopaque, table: [*:0]const u8,
-        column: [*:0]const u8) callconv(.c) i32;
-    extern fn gina_drop_index(db: ?*anyopaque, table: [*:0]const u8,
-        column: [*:0]const u8) callconv(.c) i32;
+    extern fn gina_select(db: ?*anyopaque, table: [*:0]const u8, json_query: [*:0]const u8) callconv(.c) ?[*:0]u8;
+    extern fn gina_create_index(db: ?*anyopaque, table: [*:0]const u8, column: [*:0]const u8) callconv(.c) i32;
+    extern fn gina_drop_index(db: ?*anyopaque, table: [*:0]const u8, column: [*:0]const u8) callconv(.c) i32;
     extern fn gina_stats(db: ?*anyopaque) callconv(.c) ?[*:0]u8;
     extern fn gina_tables(db: ?*anyopaque) callconv(.c) ?[*:0]u8;
     extern fn gina_exec(db: ?*anyopaque, json_ops: [*:0]const u8) callconv(.c) i32;
@@ -140,10 +126,8 @@ pub const Database = struct {
     pub fn open(path: []const u8, opts: Options) GinaError!Database {
         var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
         errdefer arena.deinit();
-        const p = arena.allocator().dupeZ(u8, path) catch return error.OutOfMemory;
-        const h = c.gina_open(p.ptr, if (opts.durable) 1 else 0,
-            opts.checkpoint_every, opts.changelog_capacity,
-            opts.max_blob_size) orelse return statusToError(c.gina_last_status());
+        const p = arena.allocator().dupeSentinel(u8, path, 0) catch return error.OutOfMemory;
+        const h = c.gina_open(p.ptr, if (opts.durable) 1 else 0, opts.checkpoint_every, opts.changelog_capacity, opts.max_blob_size) orelse return statusToError(c.gina_last_status());
         return .{ .h = h, .arena = arena };
     }
 
@@ -153,7 +137,7 @@ pub const Database = struct {
     }
 
     fn z(self: *Database, s: []const u8) GinaError![:0]const u8 {
-        return self.arena.allocator().dupeZ(u8, s) catch error.OutOfMemory;
+        return self.arena.allocator().dupeSentinel(u8, s, 0) catch error.OutOfMemory;
     }
 
     fn check(self: *Database, st: i32) GinaError!void {
@@ -178,9 +162,15 @@ pub const Database = struct {
             buf.appendSlice(a, "{\"name\":") catch return error.OutOfMemory;
             jsonStr(&buf, a, col.name) catch return error.OutOfMemory;
             const tname = switch (col.type) {
-                .null_ => "null", .bool_ => "bool", .int => "int", .float => "float",
-                .text => "text", .bytes => "bytes", .array => "array",
-                .object => "object", .vector => "vector",
+                .null_ => "null",
+                .bool_ => "bool",
+                .int => "int",
+                .float => "float",
+                .text => "text",
+                .bytes => "bytes",
+                .array => "array",
+                .object => "object",
+                .vector => "vector",
             };
             buf.appendSlice(a, ",\"type\":\"") catch return error.OutOfMemory;
             buf.appendSlice(a, tname) catch return error.OutOfMemory;
@@ -196,7 +186,6 @@ pub const Database = struct {
         buf.append(a, 0) catch return error.OutOfMemory; // NUL terminator
         const n = try self.z(name);
         try self.check(c.gina_create_table(self.h, n.ptr, @ptrCast(buf.items.ptr)));
-
     }
 
     pub fn dropTable(self: *Database, name: []const u8) GinaError!void {
@@ -257,8 +246,7 @@ pub const Database = struct {
     pub fn knn(self: *Database, table: []const u8, column: []const u8, query: []const f32, k: u32, metric: Metric) GinaError!Json {
         const t = try self.z(table);
         const col = try self.z(column);
-        const p = c.gina_knn(self.h, t.ptr, col.ptr, query.ptr,
-            @intCast(query.len), k, @intFromEnum(metric)) orelse
+        const p = c.gina_knn(self.h, t.ptr, col.ptr, query.ptr, @intCast(query.len), k, @backingInt(metric)) orelse
             return statusToError(c.gina_last_status());
         return .{ .ptr = p };
     }

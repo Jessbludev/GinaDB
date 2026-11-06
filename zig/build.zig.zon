@@ -1,0 +1,18 @@
+.{
+    // GinaDB Lite 0.7 — Zig reader/inspector/FFI tools.
+    // Toolchain pinned per GINADB-PRINCIPIOS-DISENO.md §4.4: exact version,
+    // CI matrix ready to move one number (e.g. 0.17.1 -> 0.17.2).
+    .name = .ginadb,
+    .version = "0.7.0",
+    .fingerprint = 0xd0048d789bb0a9, // Changing this has security and trust implications.
+    .minimum_zig_version = "0.17.1",
+    .dependencies = .{},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "ginaread.zig",
+        "inspect.zig",
+        "gina.zig",
+        "ffi_demo.zig",
+    },
+}
