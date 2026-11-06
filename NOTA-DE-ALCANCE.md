@@ -68,3 +68,43 @@ bitácora (`REGISTRO-DE-CAMBIOS.md`), sin reescribir esta nota.
   build" (desactualizado, preexistente, cosmético).
 - ZLS no funciona con 0.17.0/0.17.1 (separación configurer/maker; nota §4.3
   del documento): editar sin autocompletado por ahora.
+
+---
+
+## Sesión 2 — Bloque B6 (grafos como capa)
+
+### Desviación registrada (protocolo de la skill)
+
+1. **Nombre:** empezar B6 con su puerta §4 (B7 joins + estadísticas de grado)
+   sin cerrar.
+2. **Clase:** decisión de alcance (no es feature nueva: es la forma de
+   implementar lo pedido por el usuario con lo que existe).
+3. **Por qué es segura:** la capa no toca el kernel ni el formato (cero
+   registros WAL nuevos), así que no hereda garantías que el kernel no dé;
+   `Traverse` no necesita joins (solo range scans), el guardia de supernodos
+   sustituye a las estadísticas de grado mientras B7 llega, y el rector
+   declara el orden 5–8 intercambiable por prioridad de producto.
+4. **Impacto al cerrar B7:** componer `FtsScan/KNN/Traverse ⋈ filas` con el
+   planner y añadir histogramas de grado persistidos; la interfaz pública de
+   la capa no cambia.
+
+### Supuestos tomados (con porqué e impacto)
+
+1. **Nodos sin FK**: la capa guarda ids de nodos como cadenas opacas; borrar
+   un nodo de su tabla no limpia sus aristas (integridad referencial = B7).
+2. **Props solo en la fila `out`**: la fila `in` es espejo mínimo (menos RAM,
+   doble entrada más barata); `getEdge` lee siempre de `out`.
+3. **`dropGraph` best-effort** (dos DDL del motor, no una tx): documentado en
+   el contrato del bloque.
+4. **`truncated` heurístico por escaneo**: exactamente `scan_limit`
+   resultados marca truncado (conservador; un grado justo igual al límite se
+   reporta como truncado).
+5. **Bench con `checkpoint_every` por defecto del motor** (1000 commits); no
+   se pretende benchmark del motor sino verificación de aceptación de B6
+   (frontera acotada, latencia medida).
+6. **El motor reporta `GINA_ENOENT`(=1) como valor de `gina_count`** en tabla
+   inexistente; la capa lo desambigua vía status. No se "corrige" el C++
+   (congelado); queda registrado por si F2 quiere arreglarlo en el motor Zig.
+7. **`core.filemode=false`**: el sandbox reciclado restaura mode-bits 755 en
+   todo el árbol; es ruido del entorno, no un cambio real (verificado con
+   `git diff` de contenido).

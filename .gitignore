@@ -40,3 +40,7 @@ zig/zig-out/
 *.tar.gz
 node_modules/
 __pycache__/
+
+# B6 graph layer runtime databases (demo + bench)
+/zig/zig-graph-demo-data/
+/zig/zig-graph-bench-data/

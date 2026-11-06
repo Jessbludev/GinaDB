@@ -76,4 +76,39 @@ pub fn build(b: *std.Build) void {
         .root_module = ffi_mod,
     });
     ffi_step.dependOn(&b.addInstallArtifact(ffi, .{}).step);
+
+    // ---- graph layer (Block B6; links the C++ engine's shared library) ------
+    // zig build graph-demo → gina-graph CLI (demo + --bench modes)
+    const graph_step = b.step("graph-demo", "Build the B6 graph demo (needs ../libginadb.so)");
+    const graph_mod = b.createModule(.{
+        .root_source_file = b.path("graph_demo.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    graph_mod.addLibraryPath(b.path("../"));
+    graph_mod.linkSystemLibrary("ginadb", .{});
+    graph_mod.link_libc = true;
+    graph_mod.addRPath(b.path("../"));
+    const gdemo = b.addExecutable(.{
+        .name = "gina-graph",
+        .root_module = graph_mod,
+    });
+    graph_step.dependOn(&b.addInstallArtifact(gdemo, .{}).step);
+
+    // zig build graph-test → runs the B6 suite against the engine
+    const graph_test_step = b.step("graph-test", "Run the B6 graph layer tests (needs ../libginadb.so)");
+    const gt_mod = b.createModule(.{
+        .root_source_file = b.path("graph_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    gt_mod.addLibraryPath(b.path("../"));
+    gt_mod.linkSystemLibrary("ginadb", .{});
+    gt_mod.link_libc = true;
+    gt_mod.addRPath(b.path("../"));
+    const gtests = b.addTest(.{
+        .root_module = gt_mod,
+    });
+    const run_gtests = b.addRunArtifact(gtests);
+    graph_test_step.dependOn(&run_gtests.step);
 }
