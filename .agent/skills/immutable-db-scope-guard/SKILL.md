@@ -1,5 +1,6 @@
 ---
-name: immutable-db-scope-guard
+
+# Name: immutable-db-scope-guard
 description: >
   Activa al diseñar o implementar la capa de persistencia inmutable de la wallet
   (Zig append-only, FFI con Haskell, event sourcing). Garantiza que solo se
@@ -12,6 +13,7 @@ triggers:
   - "append-only zig ffi"
   - "db wallet contratos tokens"
 risk: safe
+
 ---
 
 # Identidad
